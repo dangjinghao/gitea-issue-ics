@@ -42,8 +42,12 @@ Release tags publish images to `ghcr.io/dangjinghao/gitea-issue-ics:<version>`.
 ## TODO
 
 - [x] GHCR publishing workflow
+- [x] Optional HTML descriptions using Gitea's Markup API — experimental,
+  available on [`feat/HTML-render`](https://github.com/dangjinghao/gitea-issue-ics/tree/feat/HTML-render).
+  Kept out of `master`: limited client support (macOS Calendar still shows plain
+  text), incomplete commit-reference rendering(Gitea server render limitation), and extra requests to server.
+  The plain-text Markdown description remains the default.
 - [ ] more issue metadata
     - [ ] use issue create date
 - [ ] Improve logging
-- [ ] Optional HTML descriptions using Gitea's Markdown API
 - [ ] Incremental cache update

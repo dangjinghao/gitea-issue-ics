@@ -2,8 +2,8 @@
 
 ## Build and verification
 
-Go is NOT installed on the host. All local Go commands must run in the running
-devcontainer. Find it with `docker ps`; the image starts with `vsc-gitea-issue-ics`.
+Run local Go commands in the running devcontainer. Find it with `docker ps`;
+the image starts with `vsc-gitea-issue-ics`.
 
 ```sh
 docker exec -u vscode <container-id> sh -c "cd /workspaces/gitea-issue-ics && go build ./... && go vet ./... && go test -race ./..."
@@ -11,7 +11,8 @@ docker exec -u vscode <container-id> sh -c "cd /workspaces/gitea-issue-ics && go
 
 Use `gofmt` for Go formatting. Tests use the standard `testing` package and
 `httptest`, live alongside their packages as `*_test.go`, and do not require a
-real Gitea instance. The user performs live Gitea integration testing.
+real Gitea instance. Live Gitea and calendar-client checks are separate manual
+integration tests; do not claim compatibility based only on unit tests.
 
 The devcontainer uses the Go image and the
 `ghcr.io/devcontainers-extra/features/pre-commit:2` Feature. Its
@@ -38,6 +39,34 @@ all-day calendar events. Keep changes small and independently reviewable.
 
 There is no separate Feed package, incremental issue cache, background refresh,
 webhook processing, or HTML rendering. These approaches were deferred for the MVP.
+
+## HTML rendering branch and decision
+
+`master` serves plain-text Markdown descriptions. Optional Gitea HTML rendering
+was implemented separately on `feat/HTML-render` and is intentionally not merged.
+The checked README TODO means the experiment exists on that branch, not that
+HTML rendering is available on `master`. Do not restore it here without an
+explicit request.
+
+The experiment offers limited benefit for the MVP:
+
+- Manual macOS Calendar checks displayed plain Markdown for both base64 and
+  percent-encoded HTML `DESCRIPTION;ALTREP`, with `X-ALT-DESC` also present.
+  Versions were not recorded; do not generalize to all Apple clients.
+- Thunderbird's inspected HTML reader requires percent-encoded
+  `data:text/html,` ALTREP. It skips the tested charset/base64 variant.
+- Nextcloud Calendar's inspected web UI displays plain text with link detection.
+- Public Gitea API checks linked issue references but not bare commit hashes;
+  repository-scoped web rendering linked both. A `Context` path does not supply
+  a loaded, permission-checked repository object. Behavior may vary by version.
+- The feature adds one rendering request per nonempty issue body on each expired
+  feed refresh, increasing latency and upstream work.
+
+Keep readable Markdown, normalized line endings, and the original issue URL as
+the baseline. Verify client support and API capabilities before reconsidering
+the feature. `master` has no `RENDER_HTML` configuration or HTML description cache.
+Keep documentation examples generic; never include real tokens, subscription
+hashes, private instance domains, or private issue content.
 
 ## Configuration
 
@@ -87,7 +116,10 @@ targeting `master`, pushes to `master`, and `v*` tags. Only tag pushes publish,
 and only after checks pass. Docker metadata generates semantic-version tags and
 OCI labels; stable versions also update `latest`, while prereleases do not.
 The current workflow publishes `linux/amd64` images to
-`ghcr.io/<repository-owner>/<repository-name>`.
+`ghcr.io/<repository-owner>/<repository-name>`. Provenance attestations are
+disabled to avoid GHCR displaying an additional `unknown/unknown` platform.
+Feature-branch pushes alone do not trigger this workflow; PRs targeting `master`
+do trigger checks.
 
 ```sh
 git tag v0.1.0
@@ -102,4 +134,4 @@ publication. Do not push tags or publish as part of unrelated implementation wor
 
 - `gitea.Issue`: due date is `Deadline`, created is `Created` (no `DueDate`/`CreatedAt`); user field is `UserName`, not `Login`.
 - `sdk.ListIssues(opt)` takes no repo arg — it searches all issues the account can access; use `ListIssueOption` (not `ListIssuesOptions`).
-- golang-ical: `Calendar.Serialize()` returns only `string`; use `SetXWRCalName`/`SetXWRCalDesc` and `event.SetAllDayStartAt`/`SetCreatedTime` (no `AddProperty`/`SetAllDay`/`SetCreated`).
+- golang-ical: `Calendar.Serialize()` returns only `string`; use `SetXWRCalName`/`SetXWRCalDesc` and `event.SetAllDayStartAt`/`SetCreatedTime`.
