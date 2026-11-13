@@ -43,5 +43,8 @@ stable URL after upgrading. Some calendar clients keep the name chosen when firs
 subscribing; rename or resubscribe if the old name persists.
 
 ## TODO
-- [ ] markdown -> rich text event content
 - [ ] ghcr.io
+- [ ] logging
+- [ ] markdown -> rich text event content
+  - [ ] gitea markdown render api
+- [ ] update cache
