@@ -34,6 +34,66 @@ func TestFeedPath(t *testing.T) {
 	}
 }
 
+func TestFeedHTMLRendering(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		enabled bool
+		fail    bool
+	}{
+		{name: "disabled"},
+		{name: "enabled", enabled: true},
+		{name: "failure falls back to Markdown", enabled: true, fail: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var renders, lists atomic.Int32
+			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/v1/version":
+					_, _ = w.Write([]byte(`{"version":"1.25.0"}`))
+				case "/api/v1/user":
+					_, _ = w.Write([]byte(`{"login":"alice"}`))
+				case "/api/v1/repos/issues/search":
+					lists.Add(1)
+					_, _ = w.Write([]byte(`[{"id":1,"body":"**bold**","due_date":"2026-11-20T00:00:00Z","repository":{"full_name":"alice/project"}}]`))
+				case "/api/v1/markup":
+					renders.Add(1)
+					if tc.fail {
+						http.Error(w, "unavailable", http.StatusBadGateway)
+						return
+					}
+					_, _ = w.Write([]byte("<p><strong>bold</strong></p>"))
+				default:
+					t.Errorf("unexpected endpoint: %s", r.URL.Path)
+					http.NotFound(w, r)
+				}
+			}))
+			defer api.Close()
+			s, err := New(config.Config{BaseURL: api.URL, Tokens: []string{"token"}, Refresh: time.Hour, RenderHTML: tc.enabled})
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err := s.feeds[0].get()
+			if err != nil || !strings.Contains(data, "DESCRIPTION") || !strings.Contains(data, "**bold**") {
+				t.Fatalf("Markdown must remain available: %q, %v", data, err)
+			}
+			wantHTML := tc.enabled && !tc.fail
+			if strings.Contains(data, "X-ALT-DESC") != wantHTML || strings.Contains(data, "ALTREP=") != wantHTML {
+				t.Fatalf("unexpected HTML alternatives: %s", data)
+			}
+			if cached, err := s.feeds[0].get(); err != nil || cached != data {
+				t.Fatalf("cache changed: %v", err)
+			}
+			var wantRenders int32
+			if tc.enabled {
+				wantRenders = 1
+			}
+			if renders.Load() != wantRenders || lists.Load() != 1 {
+				t.Fatalf("fresh cache must avoid upstream calls: renders=%d lists=%d", renders.Load(), lists.Load())
+			}
+		})
+	}
+}
+
 func TestSubscriptionSurvivesRestart(t *testing.T) {
 	api := newTestAPI(t)
 	for _, salt := range []string{"", "deployment-salt"} {

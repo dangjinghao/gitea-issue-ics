@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,6 +20,7 @@ type Config struct {
 	Addr        string
 	Refresh     time.Duration
 	FeedURLSalt string
+	RenderHTML  bool
 }
 
 func Load() (Config, error) {
@@ -40,6 +42,13 @@ func Load() (Config, error) {
 
 	if len(cfg.Tokens) == 0 {
 		return Config{}, fmt.Errorf("no access token: set GITEA_ACCESS_TOKENS (comma-separated for multiple tokens)")
+	}
+	if raw := os.Getenv("RENDER_HTML"); raw != "" {
+		enabled, err := strconv.ParseBool(raw)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid RENDER_HTML %q: %w", raw, err)
+		}
+		cfg.RenderHTML = enabled
 	}
 
 	return cfg, nil

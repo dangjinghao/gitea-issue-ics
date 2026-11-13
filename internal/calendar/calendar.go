@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"log"
 	"sort"
-	"strings"
 	"time"
 
 	sdk "code.gitea.io/sdk/gitea"
 	ics "github.com/arran4/golang-ical"
 )
 
-func Build(calName string, issues []*sdk.Issue) string {
+func Build(calName string, issues []*sdk.Issue, htmlDescriptions map[int64]string) string {
 	cal := ics.NewCalendar()
 	cal.SetMethod(ics.MethodPublish)
 	cal.SetProductId("-//github-dangjinghao//gitea-issue-ics//EN")
@@ -30,10 +29,7 @@ func Build(calName string, issues []*sdk.Issue) string {
 		event.SetCreatedTime(issue.Created)
 		event.SetDtStampTime(time.Now())
 		event.SetSummary(summary(issue))
-		// Normalize body line endings so ICS text escaping leaves no bare CR.
-		body := strings.ReplaceAll(issue.Body, "\r\n", "\n")
-		body = strings.ReplaceAll(body, "\r", "\n")
-		event.SetDescription(strings.TrimSpace(body))
+		setDescription(event, issue.Body, htmlDescriptions[issue.ID])
 		event.SetURL(issue.HTMLURL)
 		event.SetAllDayStartAt(*issue.Deadline)
 	}

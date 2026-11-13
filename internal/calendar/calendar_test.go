@@ -18,7 +18,7 @@ func TestBuildCalendar(t *testing.T) {
 		{ID: 2, Index: 7, Title: "later", Deadline: &second, Repository: &sdk.RepositoryMeta{FullName: "alice/project"}},
 		{ID: 1, Index: 3, Title: "earlier", Deadline: &first, Created: first.Add(-time.Hour), Body: " \n" + body + "\n ", HTMLURL: "https://git.example/alice/project/issues/3", Repository: &sdk.RepositoryMeta{FullName: "alice/project"}},
 	}
-	data := Build("alice@git.example/issue-deadlines", issues)
+	data := Build("alice@git.example/issue-deadlines", issues, nil)
 	cal, err := ics.ParseCalendar(strings.NewReader(data))
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +66,7 @@ func TestBuildDescriptionLineEndings(t *testing.T) {
 			data := Build("test", []*sdk.Issue{{
 				ID: 1, Body: body, Deadline: &deadline,
 				Repository: &sdk.RepositoryMeta{FullName: "alice/project"},
-			}})
+			}}, nil)
 			// Only ICS physical line endings may contain carriage returns.
 			if strings.Contains(strings.ReplaceAll(data, "\r\n", ""), "\r") {
 				t.Fatal("serialized calendar contains a bare carriage return")
@@ -96,7 +96,7 @@ func TestSummaryFallback(t *testing.T) {
 }
 
 func TestBuildEmptyCalendar(t *testing.T) {
-	cal, err := ics.ParseCalendar(strings.NewReader(Build("empty", nil)))
+	cal, err := ics.ParseCalendar(strings.NewReader(Build("empty", nil, nil)))
 	if err != nil || len(cal.Events()) != 0 {
 		t.Fatalf("expected valid empty calendar, got error %v", err)
 	}

@@ -5,12 +5,71 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	sdk "code.gitea.io/sdk/gitea"
 )
+
+func TestRenderIssueBody(t *testing.T) {
+	for _, subpath := range []string{"", "/gitea"} {
+		t.Run("subpath="+subpath, func(t *testing.T) {
+			var requests int
+			var fail bool
+			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == subpath+"/api/v1/version" {
+					_, _ = w.Write([]byte(`{"version":"1.25.0"}`))
+					return
+				}
+				if r.Method != http.MethodPost || r.URL.Path != subpath+"/api/v1/markup" {
+					t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				requests++
+				var opt sdk.MarkupOption
+				if err := json.NewDecoder(r.Body).Decode(&opt); err != nil {
+					t.Error(err)
+				}
+				if opt.Text != "#10 abcdef123 @alice" || opt.Mode != "comment" || opt.Context != subpath+"/alice/project" {
+					t.Errorf("incorrect rendering context: %#v", opt)
+				}
+				if r.Header.Get("Authorization") != "token test-token" {
+					t.Error("rendering must use the feed's token")
+				}
+				if fail {
+					http.Error(w, "unavailable", http.StatusBadGateway)
+					return
+				}
+				w.Header().Set("Content-Type", "text/html")
+				_, _ = w.Write([]byte("<p>rendered</p>"))
+			}))
+			defer api.Close()
+			client, err := NewClient(api.URL+subpath, "test-token")
+			if err != nil {
+				t.Fatal(err)
+			}
+			issue := &sdk.Issue{ID: 1, Body: "#10 abcdef123 @alice", Repository: &sdk.RepositoryMeta{FullName: "alice/project"}}
+			if html, err := client.RenderIssueBody(issue); err != nil || html != "<p>rendered</p>" {
+				t.Fatalf("rendered body: %q, %v", html, err)
+			}
+			fail = true
+			if _, err := client.RenderIssueBody(issue); err == nil {
+				t.Fatal("expected rendering error")
+			}
+			issue.Repository = nil
+			if _, err := client.RenderIssueBody(issue); err == nil || !strings.Contains(err.Error(), "missing repository") {
+				t.Fatalf("missing repository must fail: %v", err)
+			}
+			issue.Body = " \r\n "
+			if html, err := client.RenderIssueBody(issue); err != nil || html != "" || requests != 2 {
+				t.Fatalf("empty body must not request rendering: %q, %v, requests=%d", html, err, requests)
+			}
+		})
+	}
+}
 
 func TestIssuesWithDueDatePaginationAndFailure(t *testing.T) {
 	deadline := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)

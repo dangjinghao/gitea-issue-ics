@@ -2,6 +2,8 @@ package gitea
 
 import (
 	"fmt"
+	"net/url"
+	"strings"
 
 	sdk "code.gitea.io/sdk/gitea"
 )
@@ -9,7 +11,8 @@ import (
 const pageSize = 50
 
 type Client struct {
-	client *sdk.Client
+	client   *sdk.Client
+	basePath string
 }
 
 func NewClient(baseURL, token string) (*Client, error) {
@@ -17,7 +20,31 @@ func NewClient(baseURL, token string) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create gitea client for %s: %w", baseURL, err)
 	}
-	return &Client{client: client}, nil
+	base, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse Gitea base URL: %w", err)
+	}
+	return &Client{client: client, basePath: strings.TrimRight(base.EscapedPath(), "/")}, nil
+}
+
+// RenderIssueBody uses comment mode so references are resolved in the issue's
+// repository, including the instance's deployment subpath.
+func (c *Client) RenderIssueBody(issue *sdk.Issue) (string, error) {
+	if strings.TrimSpace(issue.Body) == "" {
+		return "", nil
+	}
+	if issue.Repository == nil || issue.Repository.FullName == "" {
+		return "", fmt.Errorf("render issue %d: missing repository name", issue.ID)
+	}
+	html, _, err := c.client.RenderMarkup(sdk.MarkupOption{
+		Text:    issue.Body,
+		Mode:    "comment",
+		Context: c.basePath + "/" + issue.Repository.FullName,
+	})
+	if err != nil {
+		return "", fmt.Errorf("render issue %d: %w", issue.ID, err)
+	}
+	return html, nil
 }
 
 func (c *Client) CurrentUser() (*sdk.User, error) {

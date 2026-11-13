@@ -22,10 +22,11 @@ import (
 const feedFilename = "issue-deadlines.ics"
 
 type feed struct {
-	path    string
-	client  *gitea.Client
-	calName string
-	refresh time.Duration
+	path       string
+	client     *gitea.Client
+	calName    string
+	refresh    time.Duration
+	renderHTML bool
 
 	mu        sync.Mutex
 	ics       string
@@ -61,10 +62,11 @@ func New(cfg config.Config) (*Server, error) {
 			return nil, fmt.Errorf("token #%d: %w", i+1, err)
 		}
 		f := &feed{
-			path:    path,
-			client:  client,
-			calName: fmt.Sprintf("%s@%s/issue-deadlines", user.UserName, baseURL.Hostname()),
-			refresh: cfg.Refresh,
+			path:       path,
+			client:     client,
+			calName:    fmt.Sprintf("%s@%s/issue-deadlines", user.UserName, baseURL.Hostname()),
+			refresh:    cfg.Refresh,
+			renderHTML: cfg.RenderHTML,
 		}
 		s.feeds = append(s.feeds, f)
 		log.Printf("token #%d (%s): subscribe with GET /%s/%s", i+1, user.UserName, f.path, feedFilename)
@@ -110,7 +112,19 @@ func (f *feed) get() (string, error) {
 		return "", fmt.Errorf("refresh failed: %w", err)
 	}
 
-	data := calendar.Build(f.calName, issues)
+	var descriptions map[int64]string
+	if f.renderHTML {
+		descriptions = make(map[int64]string, len(issues))
+		for _, issue := range issues {
+			html, err := f.client.RenderIssueBody(issue)
+			if err != nil {
+				log.Printf("%v; using plain Markdown description", err)
+				continue
+			}
+			descriptions[issue.ID] = html
+		}
+	}
+	data := calendar.Build(f.calName, issues, descriptions)
 
 	f.ics = data
 	f.fetchedAt = time.Now()

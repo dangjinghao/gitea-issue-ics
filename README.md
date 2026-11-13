@@ -37,13 +37,17 @@ Use an address reachable by your calendar client. Keep the subscription URL priv
 The default cache interval is 10 minutes; set `REFRESH_INTERVAL=5m` to change it.
 Keep tokens, the base URL, and any configured `FEED_URL_SALT` unchanged to preserve URLs.
 
+Set `RENDER_HTML=true` to render issue descriptions through Gitea for calendar
+clients that support HTML. It is disabled by default; Markdown remains available
+as plain text, including when rendering fails.
+
 Release tags publish images to `ghcr.io/dangjinghao/gitea-issue-ics:<version>`.
 
 ## TODO
 
 - [x] GHCR publishing workflow
-- [ ] more issue metadata
-    - [ ] use issue create date
+- [x] Optional HTML descriptions using Gitea's Markup API
 - [ ] Improve logging
-- [ ] Optional HTML descriptions using Gitea's Markdown API
+- [ ] more issue metadata
+    - [ ] issue create date
 - [ ] Incremental cache update
