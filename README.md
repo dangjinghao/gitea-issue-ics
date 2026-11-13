@@ -42,6 +42,8 @@ Release tags publish images to `ghcr.io/dangjinghao/gitea-issue-ics:<version>`.
 ## TODO
 
 - [x] GHCR publishing workflow
+- [ ] more issue metadata
+    - [ ] use issue create date
 - [ ] Improve logging
 - [ ] Optional HTML descriptions using Gitea's Markdown API
-- [ ] Incremental cache updates
+- [ ] Incremental cache update

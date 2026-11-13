@@ -1,6 +1,7 @@
 package calendar
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -54,6 +55,35 @@ func TestBuildCalendar(t *testing.T) {
 	}
 	if issues[0].ID != 2 {
 		t.Fatal("Build must not reorder the caller's issue slice")
+	}
+}
+
+func TestBuildDescriptionLineEndings(t *testing.T) {
+	deadline := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	for _, newline := range []string{"\n", "\r\n", "\r"} {
+		t.Run(fmt.Sprintf("%q", newline), func(t *testing.T) {
+			body := strings.Join([]string{"- [x] first", "  - [x] nested", "", "- [ ] last"}, newline)
+			data := Build("test", []*sdk.Issue{{
+				ID: 1, Body: body, Deadline: &deadline,
+				Repository: &sdk.RepositoryMeta{FullName: "alice/project"},
+			}})
+			// Only ICS physical line endings may contain carriage returns.
+			if strings.Contains(strings.ReplaceAll(data, "\r\n", ""), "\r") {
+				t.Fatal("serialized calendar contains a bare carriage return")
+			}
+			cal, err := ics.ParseCalendar(strings.NewReader(data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(cal.Events()) != 1 {
+				t.Fatalf("want 1 event, got %d", len(cal.Events()))
+			}
+			description := cal.Events()[0].GetProperty(ics.ComponentPropertyDescription)
+			want := "- [x] first\n  - [x] nested\n\n- [ ] last"
+			if description == nil || description.Value != want {
+				t.Fatalf("description: got %#v, want %q", description, want)
+			}
+		})
 	}
 }
 

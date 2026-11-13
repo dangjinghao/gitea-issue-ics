@@ -30,7 +30,10 @@ func Build(calName string, issues []*sdk.Issue) string {
 		event.SetCreatedTime(issue.Created)
 		event.SetDtStampTime(time.Now())
 		event.SetSummary(summary(issue))
-		event.SetDescription(strings.TrimSpace(issue.Body))
+		// Normalize body line endings so ICS text escaping leaves no bare CR.
+		body := strings.ReplaceAll(issue.Body, "\r\n", "\n")
+		body = strings.ReplaceAll(body, "\r", "\n")
+		event.SetDescription(strings.TrimSpace(body))
 		event.SetURL(issue.HTMLURL)
 		event.SetAllDayStartAt(*issue.Deadline)
 	}
