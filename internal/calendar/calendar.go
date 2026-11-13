@@ -28,6 +28,14 @@ func Build(calName string, issues []*sdk.Issue) string {
 	for _, issue := range sorted {
 		event := cal.AddEvent(fmt.Sprintf("gitea-issue-%d", issue.ID))
 		event.SetCreatedTime(issue.Created)
+		if !issue.Updated.IsZero() {
+			event.SetModifiedAt(issue.Updated)
+		}
+		for _, label := range issue.Labels {
+			if label != nil && label.Name != "" {
+				event.AddCategory(label.Name)
+			}
+		}
 		event.SetDtStampTime(time.Now())
 		event.SetSummary(summary(issue))
 		// Normalize body line endings so ICS text escaping leaves no bare CR.

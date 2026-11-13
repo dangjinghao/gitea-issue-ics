@@ -87,6 +87,61 @@ func TestBuildDescriptionLineEndings(t *testing.T) {
 	}
 }
 
+func TestBuildIssueMetadata(t *testing.T) {
+	deadline := time.Date(2026, 11, 20, 0, 0, 0, 0, time.UTC)
+	updated := time.Date(2026, 11, 19, 16, 30, 45, 0, time.FixedZone("UTC+8", 8*60*60))
+	for _, tc := range []struct {
+		name       string
+		updated    time.Time
+		labels     []*sdk.Label
+		wantTime   string
+		categories []string
+	}{
+		{name: "missing metadata"},
+		{name: "invalid labels", labels: []*sdk.Label{nil, {}}},
+		{
+			name: "updated and labeled", updated: updated, wantTime: "20261119T083045Z",
+			labels:     []*sdk.Label{nil, {Name: "priority/high"}, {}, {Name: "类型/缺陷"}, {Name: "comma,semicolon;backslash\\"}},
+			categories: []string{"priority/high", "类型/缺陷", "comma,semicolon;backslash\\"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := Build("test", []*sdk.Issue{{
+				ID: 1, Deadline: &deadline, Updated: tc.updated, Labels: tc.labels,
+				Repository: &sdk.RepositoryMeta{FullName: "alice/project"},
+			}})
+			cal, err := ics.ParseCalendar(strings.NewReader(data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(cal.Events()) != 1 {
+				t.Fatalf("want 1 event, got %d", len(cal.Events()))
+			}
+			event := cal.Events()[0]
+			modified := event.GetProperty(ics.ComponentPropertyLastModified)
+			if tc.wantTime == "" {
+				if modified != nil {
+					t.Fatalf("zero update time must be omitted: %#v", modified)
+				}
+			} else if modified == nil || modified.Value != tc.wantTime {
+				t.Fatalf("LAST-MODIFIED: got %#v, want %q", modified, tc.wantTime)
+			}
+			categories := event.GetProperties(ics.ComponentPropertyCategories)
+			if len(categories) != len(tc.categories) {
+				t.Fatalf("want %d categories, got %d", len(tc.categories), len(categories))
+			}
+			for i, category := range categories {
+				if category.Value != tc.categories[i] {
+					t.Errorf("category %d: got %q, want %q", i, category.Value, tc.categories[i])
+				}
+			}
+			if len(tc.categories) > 0 && !strings.Contains(data, `CATEGORIES:comma\,semicolon\;backslash\\`) {
+				t.Fatal("category punctuation must be escaped rather than treated as separators")
+			}
+		})
+	}
+}
+
 func TestSummaryFallback(t *testing.T) {
 	for _, repo := range []*sdk.RepositoryMeta{nil, {}} {
 		if got := summary(&sdk.Issue{Index: 5, Title: "task", Repository: repo}); got != "#5: task" {
