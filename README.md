@@ -42,8 +42,30 @@ Existing random URLs cannot be recovered after restart; subscribe once to the ne
 stable URL after upgrading. Some calendar clients keep the name chosen when first
 subscribing; rename or resubscribe if the old name persists.
 
+## CI and container releases
+
+Pull requests targeting `master` and pushes to `master` run formatting checks,
+build, vet, and tests with the race detector. Pushing a version tag also builds
+and publishes an image to GHCR after these checks pass:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+For this repository, the image is
+`ghcr.io/dangjinghao/gitea-issue-ics:0.1.0`. Stable versions also update `latest`;
+pre-release tags such as `v0.2.0-rc.1` publish their version without updating
+`latest`. Use valid semantic version tags. The build embeds the version in the
+binary, available with `docker run --rm <image> -version`.
+
+The workflow uses `GITHUB_TOKEN` with `packages: write`; no separate registry
+secret is needed. After the first publication, set the package visibility to
+public in GitHub Packages if anonymous pulls are desired. The current workflow
+builds `linux/amd64` images on the standard Ubuntu runner.
+
 ## TODO
-- [ ] ghcr.io
+- [x] ghcr.io publishing workflow
 - [ ] logging
 - [ ] markdown -> rich text event content
   - [ ] gitea markdown render api
