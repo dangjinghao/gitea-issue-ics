@@ -18,7 +18,7 @@ func TestBuildCalendar(t *testing.T) {
 		{ID: 2, Index: 7, Title: "later", Deadline: &second, Repository: &sdk.RepositoryMeta{FullName: "alice/project"}},
 		{ID: 1, Index: 3, Title: "earlier", Deadline: &first, Created: first.Add(-time.Hour), Body: " \n" + body + "\n ", HTMLURL: "https://git.example/alice/project/issues/3", Repository: &sdk.RepositoryMeta{FullName: "alice/project"}},
 	}
-	data := Build("alice@git.example/issue-deadlines", issues)
+	data := Build("alice@git.example/issue-deadlines", issues, time.Hour)
 	cal, err := ics.ParseCalendar(strings.NewReader(data))
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +66,7 @@ func TestBuildDescriptionLineEndings(t *testing.T) {
 			data := Build("test", []*sdk.Issue{{
 				ID: 1, Body: body, Deadline: &deadline,
 				Repository: &sdk.RepositoryMeta{FullName: "alice/project"},
-			}})
+			}}, time.Hour)
 			// Only ICS physical line endings may contain carriage returns.
 			if strings.Contains(strings.ReplaceAll(data, "\r\n", ""), "\r") {
 				t.Fatal("serialized calendar contains a bare carriage return")
@@ -109,7 +109,7 @@ func TestBuildIssueMetadata(t *testing.T) {
 			data := Build("test", []*sdk.Issue{{
 				ID: 1, Deadline: &deadline, Updated: tc.updated, Labels: tc.labels,
 				Repository: &sdk.RepositoryMeta{FullName: "alice/project"},
-			}})
+			}}, time.Hour)
 			cal, err := ics.ParseCalendar(strings.NewReader(data))
 			if err != nil {
 				t.Fatal(err)
@@ -151,7 +151,7 @@ func TestSummaryFallback(t *testing.T) {
 }
 
 func TestBuildEmptyCalendar(t *testing.T) {
-	cal, err := ics.ParseCalendar(strings.NewReader(Build("empty", nil)))
+	cal, err := ics.ParseCalendar(strings.NewReader(Build("empty", nil, time.Hour)))
 	if err != nil || len(cal.Events()) != 0 {
 		t.Fatalf("expected valid empty calendar, got error %v", err)
 	}
@@ -159,7 +159,7 @@ func TestBuildEmptyCalendar(t *testing.T) {
 
 func TestCalendarColor(t *testing.T) {
 	deadline := time.Now()
-	data := Build("test", []*sdk.Issue{{ID: 1, Deadline: &deadline, Repository: &sdk.RepositoryMeta{FullName: "alice/project"}}})
+	data := Build("test", []*sdk.Issue{{ID: 1, Deadline: &deadline, Repository: &sdk.RepositoryMeta{FullName: "alice/project"}}}, time.Hour)
 	header, events, found := strings.Cut(strings.ReplaceAll(data, "\r\n", "\n"), "BEGIN:VEVENT")
 	if !found {
 		t.Fatal("missing event")
@@ -171,5 +171,37 @@ func TestCalendarColor(t *testing.T) {
 	}
 	if _, err := ics.ParseCalendar(strings.NewReader(data)); err != nil {
 		t.Fatal(err)
+	}
+}
+func TestCalendarRefreshAndColor(t *testing.T) {
+	for _, tc := range []struct {
+		interval time.Duration
+		want     string
+	}{
+		{time.Hour, "PT1H"},
+		{90 * time.Minute, "PT1H30M"},
+		{time.Second, "PT1S"},
+		{25*time.Hour + 2*time.Minute + 3*time.Second, "PT25H2M3S"},
+	} {
+		t.Run(tc.want, func(t *testing.T) {
+			deadline := time.Now()
+			data := Build("test", []*sdk.Issue{{ID: 1, Deadline: &deadline, Repository: &sdk.RepositoryMeta{FullName: "alice/project"}}}, tc.interval)
+			header, events, found := strings.Cut(strings.ReplaceAll(data, "\r\n", "\n"), "BEGIN:VEVENT")
+			if !found {
+				t.Fatal("missing event")
+			}
+			for _, property := range []string{
+				"REFRESH-INTERVAL;VALUE=DURATION:" + tc.want,
+				"X-PUBLISHED-TTL:" + tc.want,
+				"X-APPLE-CALENDAR-COLOR:#609926",
+			} {
+				if strings.Count(header, property+"\n") != 1 || strings.Contains(events, property) {
+					t.Errorf("property must occur exactly once at calendar level: %s; header=%q", property, header)
+				}
+			}
+			if _, err := ics.ParseCalendar(strings.NewReader(data)); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }

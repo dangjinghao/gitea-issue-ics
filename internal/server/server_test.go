@@ -114,7 +114,7 @@ func TestHTTPStaleFallback(t *testing.T) {
 
 func TestFeedCacheAndStaleFallback(t *testing.T) {
 	api := newTestAPI(t)
-	cfg := config.Config{BaseURL: api.URL, Tokens: []string{"test-token"}, Refresh: time.Hour}
+	cfg := config.Config{BaseURL: api.URL, Tokens: []string{"test-token"}, Refresh: time.Hour, ICalRefresh: 90 * time.Minute}
 	s, err := New(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -135,6 +135,9 @@ func TestFeedCacheAndStaleFallback(t *testing.T) {
 		t.Fatalf("concurrent requests fetched issues %d times", api.issueRequests.Load())
 	}
 	cached, err := f.get()
+	if !strings.Contains(cached, "REFRESH-INTERVAL;VALUE=DURATION:PT1H30M") || !strings.Contains(cached, "X-PUBLISHED-TTL:PT1H30M") {
+		t.Fatal("configured calendar interval missing from feed")
+	}
 	if err != nil || api.issueRequests.Load() != 1 {
 		t.Fatal("fresh cache must not fetch issues")
 	}

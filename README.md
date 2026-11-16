@@ -34,6 +34,8 @@ Release tags publish images to `ghcr.io/dangjinghao/gitea-issue-ics:<version>`.
 
 The feed advertises `COLOR:olivedrab` as a standard named color close to `Gitea` green, plus `X-APPLE-CALENDAR-COLOR:#609926` for the exact color. Clients decide whether to use these hints.
 
+Set `ICAL_REFRESH_INTERVAL=1h` to advertise a recommended client polling interval (default: one hour). Use a positive whole-second `Go` duration, such as `30m` or `1h30m`. This is independent of the server cache interval `REFRESH_INTERVAL`; clients may ignore or override the recommendation.
+
 ## TODO
 
 - [x] `GHCR` publishing workflow

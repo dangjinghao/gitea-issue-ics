@@ -18,6 +18,7 @@ type Config struct {
 	Tokens      []string
 	Addr        string
 	Refresh     time.Duration
+	ICalRefresh time.Duration
 	FeedURLSalt string
 }
 
@@ -26,6 +27,7 @@ func Load() (Config, error) {
 		BaseURL:     envDefault("GITEA_BASE_URL", defaultBaseURL),
 		Addr:        envDefault("LISTEN_ADDR", defaultAddr),
 		Refresh:     defaultRefresh,
+		ICalRefresh: time.Hour,
 		Tokens:      splitTokens(os.Getenv("GITEA_ACCESS_TOKENS")),
 		FeedURLSalt: os.Getenv("FEED_URL_SALT"),
 	}
@@ -36,6 +38,14 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("invalid REFRESH_INTERVAL %q: %w", raw, err)
 		}
 		cfg.Refresh = d
+	}
+
+	if raw := os.Getenv("ICAL_REFRESH_INTERVAL"); raw != "" {
+		d, err := time.ParseDuration(raw)
+		if err != nil || d <= 0 || d%time.Second != 0 {
+			return Config{}, fmt.Errorf("invalid ICAL_REFRESH_INTERVAL %q: expected a positive whole-second Go duration", raw)
+		}
+		cfg.ICalRefresh = d
 	}
 
 	if len(cfg.Tokens) == 0 {

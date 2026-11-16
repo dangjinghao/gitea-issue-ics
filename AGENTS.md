@@ -46,9 +46,12 @@ Keep readable `Markdown`, normalized line endings, and the original issue URL as
 | `GITEA_BASE_URL` | `https://gitea.com` | Instance URL, including any deployment subpath |
 | `LISTEN_ADDR` | `:8080` | `HTTP` listen address |
 | `REFRESH_INTERVAL` | `10m` | `Go` duration controlling `ICS` cache freshness |
+| `ICAL_REFRESH_INTERVAL` | `1h` | Positive whole-second `Go` duration recommended for client polling |
 | `FEED_URL_SALT` | Empty | Optional fixed context for deriving subscription paths |
 
-Do not add undocumented token-variable aliases. Configuration currently accepts any syntactically valid duration; stricter validation is a separate change.
+Do not add undocumented token-variable aliases. `REFRESH_INTERVAL` currently accepts any syntactically valid duration; stricter validation is a separate change. `ICAL_REFRESH_INTERVAL` rejects zero, negative, and fractional-second durations.
+
+`ICAL_REFRESH_INTERVAL` is serialized as an `iCalendar` duration in calendar-level `REFRESH-INTERVAL;VALUE=DURATION` and `X-PUBLISHED-TTL`, for example `PT1H`. The former follows `RFC 7986` section 5.7; the latter is a nonstandard compatibility hint also emitted by `ical-generator`. Source links are in `internal/calendar/calendar.go`. Clients may ignore or override these hints; they do not control server caching. The library's `SetRefreshInterval` automatically adds `VALUE=DURATION`; do not pass it again.
 
 At the `VCALENDAR` level, standard `COLOR:olivedrab` provides a named color close to `Gitea` green, while `X-APPLE-CALENDAR-COLOR:#609926` preserves the exact color. Standard `COLOR` only permits `CSS3` color names. Clients may ignore these hints. No color configuration is provided.
 

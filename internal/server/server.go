@@ -22,10 +22,11 @@ import (
 const feedFilename = "issue-deadlines.ics"
 
 type feed struct {
-	path    string
-	client  *gitea.Client
-	calName string
-	refresh time.Duration
+	path        string
+	client      *gitea.Client
+	calName     string
+	refresh     time.Duration
+	icalRefresh time.Duration
 
 	mu        sync.Mutex
 	ics       string
@@ -37,6 +38,9 @@ type Server struct {
 }
 
 func New(cfg config.Config) (*Server, error) {
+	if cfg.ICalRefresh == 0 {
+		cfg.ICalRefresh = time.Hour
+	}
 	baseURL, err := url.Parse(cfg.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse Gitea base URL: %w", err)
@@ -61,10 +65,11 @@ func New(cfg config.Config) (*Server, error) {
 			return nil, fmt.Errorf("token #%d: %w", i+1, err)
 		}
 		f := &feed{
-			path:    path,
-			client:  client,
-			calName: fmt.Sprintf("%s@%s/issue-deadlines", user.UserName, baseURL.Hostname()),
-			refresh: cfg.Refresh,
+			path:        path,
+			client:      client,
+			calName:     fmt.Sprintf("%s@%s/issue-deadlines", user.UserName, baseURL.Hostname()),
+			refresh:     cfg.Refresh,
+			icalRefresh: cfg.ICalRefresh,
 		}
 		s.feeds = append(s.feeds, f)
 		log.Printf("token #%d (%s): subscribe with GET /%s/%s", i+1, user.UserName, f.path, feedFilename)
@@ -110,7 +115,7 @@ func (f *feed) get() (string, error) {
 		return "", fmt.Errorf("refresh failed: %w", err)
 	}
 
-	data := calendar.Build(f.calName, issues)
+	data := calendar.Build(f.calName, issues, f.icalRefresh)
 
 	f.ics = data
 	f.fetchedAt = time.Now()
