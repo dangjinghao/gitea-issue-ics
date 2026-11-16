@@ -18,6 +18,16 @@ func Build(calName string, issues []*sdk.Issue) string {
 	cal.SetXWRCalName(calName)
 	cal.SetName(calName)
 	cal.SetXWRCalDesc("Gitea issues with due dates")
+	// RFC 7986 section 5.9 requires a CSS3 color name; olivedrab approximates Gitea green.
+	// https://www.rfc-editor.org/rfc/rfc7986.html#section-5.9
+	cal.SetColor("olivedrab")
+	// SabreDAV exports this nonstandard field for an exact hex color.
+	// This is an interoperability hint; clients may ignore it.
+	// https://github.com/sabre-io/dav/blob/master/lib/CalDAV/ICSExportPlugin.php (mergeObjects)
+	cal.CalendarProperties = append(cal.CalendarProperties, ics.CalendarProperty{BaseProperty: ics.BaseProperty{
+		IANAToken: "X-APPLE-CALENDAR-COLOR",
+		Value:     "#609926", // Gitea green.
+	}})
 
 	sorted := make([]*sdk.Issue, len(issues))
 	copy(sorted, issues)

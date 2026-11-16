@@ -156,3 +156,20 @@ func TestBuildEmptyCalendar(t *testing.T) {
 		t.Fatalf("expected valid empty calendar, got error %v", err)
 	}
 }
+
+func TestCalendarColor(t *testing.T) {
+	deadline := time.Now()
+	data := Build("test", []*sdk.Issue{{ID: 1, Deadline: &deadline, Repository: &sdk.RepositoryMeta{FullName: "alice/project"}}})
+	header, events, found := strings.Cut(strings.ReplaceAll(data, "\r\n", "\n"), "BEGIN:VEVENT")
+	if !found {
+		t.Fatal("missing event")
+	}
+	for _, property := range []string{"COLOR:olivedrab", "X-APPLE-CALENDAR-COLOR:#609926"} {
+		if strings.Count("\n"+header, "\n"+property+"\n") != 1 || strings.Contains(events, property) {
+			t.Fatalf("color must occur exactly once at calendar level: %s", property)
+		}
+	}
+	if _, err := ics.ParseCalendar(strings.NewReader(data)); err != nil {
+		t.Fatal(err)
+	}
+}

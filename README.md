@@ -32,6 +32,8 @@ The default cache interval is 10 minutes; set `REFRESH_INTERVAL=5m` to change it
 
 Release tags publish images to `ghcr.io/dangjinghao/gitea-issue-ics:<version>`.
 
+The feed advertises `COLOR:olivedrab` as a standard named color close to `Gitea` green, plus `X-APPLE-CALENDAR-COLOR:#609926` for the exact color. Clients decide whether to use these hints.
+
 ## TODO
 
 - [x] `GHCR` publishing workflow

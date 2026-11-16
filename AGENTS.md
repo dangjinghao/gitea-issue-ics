@@ -50,6 +50,8 @@ Keep readable `Markdown`, normalized line endings, and the original issue URL as
 
 Do not add undocumented token-variable aliases. Configuration currently accepts any syntactically valid duration; stricter validation is a separate change.
 
+At the `VCALENDAR` level, standard `COLOR:olivedrab` provides a named color close to `Gitea` green, while `X-APPLE-CALENDAR-COLOR:#609926` preserves the exact color. Standard `COLOR` only permits `CSS3` color names. Clients may ignore these hints. No color configuration is provided.
+
 ## Subscription and cache behavior
 
 The route is `GET /<hash>/issue-deadlines.ics`. The hash is the full hex-encoded `HMAC-SHA256` result, using the token as key and `gitea-issue-ics/feed/v1\x00<baseURL>\x00<salt>` as input. Trailing `/` characters are removed from the base URL for hashing. Token ordering does not affect URLs; changing a token, normalized base URL, or salt does. The old bare-hash route is not registered.
